@@ -94,18 +94,20 @@ def save_student_account(student_id, account_name):
     worksheet = connect_sheet()
     records = worksheet.get_all_records()
 
-    if not records or 'student_id' not in records[0]:
-        df = pd.DataFrame(columns=['student_id', 'account_name'])
+    df = pd.DataFrame(records)
+    df['student_id'] = df.get('student_id', '').astype(str)
+
+    if student_id in df['student_id'].values:
+        current_value = df.loc[df['student_id'] == student_id, 'account_name'].values[0]
+        if not pd.notna(current_value) or str(current_value).strip() == "":
+            df.loc[df['student_id'] == student_id, 'account_name'] = account_name
+        else:
+            return  # ข้ามการเขียนทับ
     else:
-        df = pd.DataFrame(records)
+        df.loc[len(df)] = [student_id, account_name]
 
-    df = df[df['student_id'].astype(str) != str(student_id)]
-    df.loc[len(df)] = [student_id, account_name]
-
-    worksheet.clear()
-    worksheet.append_row(['student_id', 'account_name'])
-    for row in df.itertuples(index=False):
-        worksheet.append_row(list(row))
+    worksheet.resize(rows=1)
+    worksheet.update([['student_id', 'account_name']] + df.values.tolist())
 
 def main():
     st.set_page_config(page_title="ระบบค้นหานักเรียน", page_icon="📘")
