@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import gspread
 
 # Google Sheet URL
@@ -8,15 +8,27 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/1_kFGRDDfELt4zDwgABBRh3X6hh_
 
 def connect_sheet():
     # Connect to Google Sheet
-    scope = ['https://spreadsheets.google.com/feeds',
-             'https://www.googleapis.com/auth/drive']
+    scope = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ]
     # Use secrets for service account
-    if 'service_account' in st.secrets:
-        creds = ServiceAccountCredentials.from_service_account_info(st.secrets['service_account'], scope)
-    else:
-        creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', scope)
-    client = gspread.authorize(creds)
-    return client.open_by_url(SHEET_URL).sheet1
+    try:
+        if 'service_account' in st.secrets:
+            creds = Credentials.from_service_account_info(
+                st.secrets['service_account'],
+                scopes=scope
+            )
+        else:
+            creds = Credentials.from_service_account_file(
+                'service_account.json',
+                scopes=scope
+            )
+        client = gspread.authorize(creds)
+        return client.open_by_url(SHEET_URL).sheet1
+    except Exception as e:
+        st.error(f"Error connecting to Google Sheet: {str(e)}")
+        raise
 
 def get_class_info(filename):
     # Extract class info from filename
@@ -162,13 +174,19 @@ def load_student_data():
         return pd.DataFrame()
 
 def save_student_account(student_id, account_name):
+    if not account_name or not account_name.strip():
+        st.error("กรุณากรอกชื่อแอคเค้า")
+        return False
+        
     try:
+        st.info("กำลังเชื่อมต่อกับ Google Sheet...")
         # Connect to Google Sheet
         worksheet = connect_sheet()
         records = worksheet.get_all_records()
         
         # Convert to DataFrame
         df = pd.DataFrame(records)
+        st.info("กำลังบันทึกข้อมูล...")
         
         # Check if student_id exists
         if 'student_id' in df.columns:
@@ -179,16 +197,21 @@ def save_student_account(student_id, account_name):
                 # Update existing record
                 row_idx = df[df['student_id'] == str(student_id)].index[0] + 2  # Add 2 for header and 1-based index
                 worksheet.update_cell(row_idx, 2, account_name)
+                st.success(f"อัพเดทข้อมูลสำเร็จ: รหัส {student_id} -> {account_name}")
             else:
                 # Add new record
                 worksheet.append_row([student_id, account_name])
+                st.success(f"เพิ่มข้อมูลใหม่สำเร็จ: รหัส {student_id} -> {account_name}")
         else:
             # First record
             worksheet.append_row(['student_id', 'account_name'])  # Headers
             worksheet.append_row([student_id, account_name])
+            st.success(f"สร้างชีทและเพิ่มข้อมูลสำเร็จ: รหัส {student_id} -> {account_name}")
+        return True
             
     except Exception as e:
-        st.error(f"ไม่สามารถบันทึกข้อมูล: {e}")
+        st.error(f"ไม่สามารถบันทึกข้อมูล: {str(e)}")
+        return False
 
 def main():
     st.set_page_config(page_title="ระบบค้นหานักเรียน", page_icon="📘")
@@ -218,9 +241,8 @@ def main():
             if st.checkbox("✅ เพิ่มชื่อแอคเค้า"):
                 acc_input = st.text_input("กรอกชื่อแอคเค้าใหม่")
                 if st.button("💾 บันทึก"):
-                    save_student_account(student_id, acc_input)
-                    st.success("✅ บันทึกเรียบร้อยแล้ว")
-                    st.rerun()
+                    if save_student_account(student_id, acc_input):
+                        st.rerun()
         else:
             st.error("❌ ไม่พบรหัสนี้ในระบบ")
 
