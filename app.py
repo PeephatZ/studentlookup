@@ -4,6 +4,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import glob
 import csv
+import re
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1ucIs5buCGLhlnv0Q-pEQ7yN1FJImvEpVZeiOv41xw3I/edit?usp=sharing"
 
@@ -14,26 +15,34 @@ def connect_sheet():
     client = gspread.authorize(creds)
     return client.open_by_url(SHEET_URL).sheet1
 
+def extract_classroom_from_lines(lines):
+    for line in lines:
+        match = re.search(r"ชั้นมัธยมศึกษาปีที่\s*(\d+)\s*ห้องเรียนที่\s*(\d+)", line)
+        if match:
+            level = match.group(1)
+            room = match.group(2)
+            return f"{level}/{room}"
+    return "ไม่ระบุ"
+
 def load_student_data():
     try:
         all_rows = []
 
         for file_path in glob.glob("data/*.csv"):
             with open(file_path, encoding="utf-8") as f:
-                reader = csv.reader(f)
+                lines = f.readlines()
+                classroom = extract_classroom_from_lines(lines)
+                reader = csv.reader(lines)
                 for row in reader:
-                    # ✅ รองรับทั้งแบบ 5 คอลัมน์ และมี classroom ด้วย (6 คอลัมน์)
                     if len(row) >= 5 and row[0].strip().isdigit():
-                        # ถ้ามีห้องเรียน ให้เก็บด้วย
-                        row_data = {
+                        all_rows.append({
                             "เลขที่": row[0].strip(),
                             "student_id": row[1].strip(),
                             "prefix": row[2].strip(),
                             "first_name": row[3].strip(),
                             "last_name": row[4].strip(),
-                            "classroom": row[5].strip() if len(row) >= 6 else "ไม่ระบุ"
-                        }
-                        all_rows.append(row_data)
+                            "classroom": classroom
+                        })
 
         if not all_rows:
             st.error("⚠️ ไม่พบข้อมูลนักเรียนที่มีรูปแบบถูกต้อง")
