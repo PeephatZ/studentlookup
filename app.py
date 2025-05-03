@@ -21,8 +21,21 @@ def connect_sheet():
         service_account_info = st.secrets['gcp_service_account']
         st.write("Service Account Info Keys:", list(service_account_info.keys()))
         
-        # Check private key format
+        # Format and validate private key
         private_key = service_account_info.get('private_key', '')
+        
+        # Clean up the private key
+        private_key = private_key.strip()
+        if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+            private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
+        if not private_key.endswith('-----END PRIVATE KEY-----'):
+            private_key = private_key + '\n-----END PRIVATE KEY-----'
+        if not private_key.endswith('\n'):
+            private_key = private_key + '\n'
+            
+        # Update the service account info with cleaned private key
+        service_account_info['private_key'] = private_key
+        
         st.write("Private key starts with:", private_key[:50] if private_key else 'No private key found')
         st.write("Private key ends with:", private_key[-50:] if private_key else 'No private key found')
             
