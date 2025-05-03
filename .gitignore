@@ -1,0 +1,12 @@
+# Ignore service account key
+service_account.json
+*.json
+
+# Ignore student data
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
