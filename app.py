@@ -3,13 +3,13 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from io import StringIO
+import os
 
+# URL ของ Google Sheet ที่ใช้เก็บ account
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1ucIs5buCGLhlnv0Q-pEQ7yN1FJImvEpVZeiOv41xw3I/edit?usp=sharing"
 
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
-    # ✅ ใช้ secret จาก Streamlit Cloud หรือ .streamlit/secrets.toml
     service_account_info = dict(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
@@ -17,7 +17,7 @@ def connect_sheet():
 
 def load_student_data():
     try:
-        with open("allstudent.csv", encoding="utf-8") as f:
+        with open("data/allstudent.csv", encoding="utf-8") as f:
             lines = f.readlines()
 
         data_lines = [line for line in lines if line.strip().split(',')[0].isdigit()]
@@ -39,7 +39,7 @@ def load_student_data():
 
         return df
     except Exception as e:
-        st.error(f"ไม่สามารถอ่าน allstudent.csv ได้: {e}")
+        st.error(f"ไม่สามารถอ่าน data/allstudent.csv ได้: {e}")
         return pd.DataFrame()
 
 def save_student_account(student_id, account_name):
