@@ -22,7 +22,6 @@ def extract_blocks_with_classroom(lines):
 
     for line in lines:
         if "ชั้นมัธยมศึกษาปีที่" in line and "ห้องเรียนที่" in line:
-            # ถ้ามี block เก่าเก็บไว้ก่อน
             if current_block:
                 blocks.append((current_classroom, current_block))
                 current_block = []
@@ -35,7 +34,6 @@ def extract_blocks_with_classroom(lines):
         else:
             current_block.append(line)
 
-    # เพิ่ม block สุดท้าย
     if current_block:
         blocks.append((current_classroom, current_block))
 
@@ -130,7 +128,7 @@ def main():
             st.success(f"พบ: {name} ชั้น {room} เลขที่ {number}")
 
             account = student.get("account_name", "").iloc[0]
-            if account and str(account).strip():
+            if pd.notna(account) and str(account).strip():
                 st.info(f"📌 ชื่อแอคเค้า: {account}")
             else:
                 if st.checkbox("✅ เพิ่มชื่อแอคเค้า"):
