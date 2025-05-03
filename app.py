@@ -14,9 +14,15 @@ def connect_sheet():
     ]
     # Use secrets for service account
     try:
+<<<<<<< HEAD
         if 'service_account' in st.secrets:
             creds = Credentials.from_service_account_info(
                 st.secrets['service_account'],
+=======
+        if 'gcp_service_account' in st.secrets:
+            creds = Credentials.from_service_account_info(
+                st.secrets['gcp_service_account'],
+>>>>>>> 09b4d89 (Update secrets key to gcp_service_account)
                 scopes=scope
             )
         else:
