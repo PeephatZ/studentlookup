@@ -2,15 +2,11 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from io import StringIO
-import os
 import glob
 import csv
 
-# 🔗 ลิงก์ Google Sheet ที่ใช้เก็บชื่อแอคเค้า
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1ucIs5buCGLhlnv0Q-pEQ7yN1FJImvEpVZeiOv41xw3I/edit?usp=sharing"
 
-# ✅ เชื่อมต่อ Google Sheet
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     service_account_info = dict(st.secrets["gcp_service_account"])
@@ -18,7 +14,6 @@ def connect_sheet():
     client = gspread.authorize(creds)
     return client.open_by_url(SHEET_URL).sheet1
 
-# 📥 โหลดข้อมูลนักเรียนจากทุกไฟล์ CSV โดยปลอดภัย 100%
 def load_student_data():
     try:
         all_rows = []
@@ -27,21 +22,33 @@ def load_student_data():
             with open(file_path, encoding="utf-8") as f:
                 reader = csv.reader(f)
                 for row in reader:
-                    # ✅ เลือกเฉพาะบรรทัดที่มี 5 ช่อง และช่องแรกเป็นตัวเลข (เลขที่)
-                    if len(row) == 5 and row[0].strip().isdigit():
-                        all_rows.append(row)
+                    # ✅ รองรับทั้งแบบ 5 คอลัมน์ และมี classroom ด้วย (6 คอลัมน์)
+                    if len(row) >= 5 and row[0].strip().isdigit():
+                        # ถ้ามีห้องเรียน ให้เก็บด้วย
+                        row_data = {
+                            "เลขที่": row[0].strip(),
+                            "student_id": row[1].strip(),
+                            "prefix": row[2].strip(),
+                            "first_name": row[3].strip(),
+                            "last_name": row[4].strip(),
+                            "classroom": row[5].strip() if len(row) >= 6 else "ไม่ระบุ"
+                        }
+                        all_rows.append(row_data)
 
         if not all_rows:
             st.error("⚠️ ไม่พบข้อมูลนักเรียนที่มีรูปแบบถูกต้อง")
             return pd.DataFrame()
 
-        df = pd.DataFrame(all_rows, columns=["เลขที่", "student_id", "prefix", "first_name", "last_name"])
+        df = pd.DataFrame(all_rows)
         df['full_name'] = df['prefix'] + df['first_name'] + ' ' + df['last_name']
 
-        # 🧾 Merge กับ Google Sheet
         try:
             worksheet = connect_sheet()
             records = worksheet.get_all_records()
+            if not records or 'student_id' not in records[0]:
+                df['account_name'] = ''
+                return df
+
             df_account = pd.DataFrame(records)
             df_account['student_id'] = df_account['student_id'].astype(str)
             df['student_id'] = df['student_id'].astype(str)
@@ -56,11 +63,14 @@ def load_student_data():
         st.error(f"เกิดข้อผิดพลาดในการโหลดไฟล์: {e}")
         return pd.DataFrame()
 
-# 💾 บันทึกชื่อแอคเค้านักเรียน
 def save_student_account(student_id, account_name):
     worksheet = connect_sheet()
     records = worksheet.get_all_records()
-    df = pd.DataFrame(records)
+
+    if not records or 'student_id' not in records[0]:
+        df = pd.DataFrame(columns=['student_id', 'account_name'])
+    else:
+        df = pd.DataFrame(records)
 
     df = df[df['student_id'].astype(str) != str(student_id)]
     df.loc[len(df)] = [student_id, account_name]
@@ -70,7 +80,6 @@ def save_student_account(student_id, account_name):
     for row in df.itertuples(index=False):
         worksheet.append_row(list(row))
 
-# 🖥️ UI หลัก
 def main():
     st.set_page_config(page_title="ระบบค้นหานักเรียน", page_icon="📘")
     st.title("📘 ระบบค้นหานักเรียน ปี 2568")
@@ -86,7 +95,11 @@ def main():
         student = df[df['student_id'] == student_id]
 
         if not student.empty:
-            st.success(f"พบ: {student['full_name'].iloc[0]}")
+            name = student['full_name'].iloc[0]
+            room = student.get("classroom", "ไม่ระบุ").iloc[0]
+            number = student.get("เลขที่", "-").iloc[0]
+            st.success(f"พบ: {name} ชั้น {room} เลขที่ {number}")
+
             account = student.get("account_name", "").iloc[0]
             if account and str(account).strip():
                 st.info(f"📌 ชื่อแอคเค้า: {account}")
