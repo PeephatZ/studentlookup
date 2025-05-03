@@ -12,24 +12,17 @@ def connect_sheet():
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
-    # Use secrets for service account
     try:
-<<<<<<< HEAD
-        if 'service_account' in st.secrets:
-            creds = Credentials.from_service_account_info(
-                st.secrets['service_account'],
-=======
-        if 'gcp_service_account' in st.secrets:
-            creds = Credentials.from_service_account_info(
-                st.secrets['gcp_service_account'],
->>>>>>> 09b4d89 (Update secrets key to gcp_service_account)
-                scopes=scope
-            )
-        else:
-            creds = Credentials.from_service_account_file(
-                'service_account.json',
-                scopes=scope
-            )
+        # Always use secrets for service account
+        if not st.secrets['gcp_service_account']:
+            st.error("Missing Google Sheets credentials in Streamlit secrets")
+            st.stop()
+            
+        creds = Credentials.from_service_account_info(
+            st.secrets['gcp_service_account'],
+            scopes=scope
+        )
+        
         client = gspread.authorize(creds)
         return client.open_by_url(SHEET_URL).sheet1
     except Exception as e:
