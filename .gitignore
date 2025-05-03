@@ -2,7 +2,10 @@
 service_account.json
 *.json
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> ebd1921982479a2fdd3c8177f2a348f722d482eb
 
 # Python
 __pycache__/
