@@ -20,6 +20,11 @@ def connect_sheet():
 
         service_account_info = st.secrets['gcp_service_account']
         st.write("Service Account Info Keys:", list(service_account_info.keys()))
+        
+        # Check private key format
+        private_key = service_account_info.get('private_key', '')
+        st.write("Private key starts with:", private_key[:50] if private_key else 'No private key found')
+        st.write("Private key ends with:", private_key[-50:] if private_key else 'No private key found')
             
         creds = Credentials.from_service_account_info(
             service_account_info,
