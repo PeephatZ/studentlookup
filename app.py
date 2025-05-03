@@ -14,12 +14,15 @@ def connect_sheet():
     ]
     try:
         # Always use secrets for service account
-        if not st.secrets['gcp_service_account']:
-            st.error("Missing Google Sheets credentials in Streamlit secrets")
+        if 'gcp_service_account' not in st.secrets:
+            st.error("Missing gcp_service_account in Streamlit secrets")
             st.stop()
+
+        service_account_info = st.secrets['gcp_service_account']
+        st.write("Service Account Info Keys:", list(service_account_info.keys()))
             
         creds = Credentials.from_service_account_info(
-            st.secrets['gcp_service_account'],
+            service_account_info,
             scopes=scope
         )
         
@@ -27,6 +30,8 @@ def connect_sheet():
         return client.open_by_url(SHEET_URL).sheet1
     except Exception as e:
         st.error(f"Error connecting to Google Sheet: {str(e)}")
+        st.error(f"Error type: {type(e).__name__}")
+        st.error(f"Full error details: {repr(e)}")
         raise
 
 def get_class_info(filename):
