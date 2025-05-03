@@ -6,10 +6,10 @@ from io import StringIO
 import os
 import glob
 
-# 🔗 ลิงก์ Google Sheet ที่ใช้บันทึกชื่อแอคเค้า
+# 🔗 ลิงก์ Google Sheet ที่ใช้เก็บชื่อแอคเค้า
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1ucIs5buCGLhlnv0Q-pEQ7yN1FJImvEpVZeiOv41xw3I/edit?usp=sharing"
 
-# 📥 อ่าน Google Sheet ด้วย Service Account
+# ✅ เชื่อมต่อ Google Sheet
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     service_account_info = dict(st.secrets["gcp_service_account"])
@@ -17,29 +17,29 @@ def connect_sheet():
     client = gspread.authorize(creds)
     return client.open_by_url(SHEET_URL).sheet1
 
-# 📂 โหลดข้อมูลนักเรียนจากทุกไฟล์ .csv ใน data/
+# 📥 โหลดข้อมูลนักเรียนจากทุกไฟล์ CSV โดยไม่แตะไฟล์ต้นฉบับ
 def load_student_data():
     try:
         all_lines = []
 
-        # ค้นหาไฟล์ .csv ทั้งหมดในโฟลเดอร์ data/
         for file_path in glob.glob("data/*.csv"):
             with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
-                # เก็บเฉพาะบรรทัดที่มีเลขลำดับขึ้นต้น (เลขที่)
-                data_lines = [line for line in lines if line.strip().split(',')[0].isdigit()]
-                all_lines.extend(data_lines)
+                for line in lines:
+                    parts = line.strip().split(',')
+                    # ✅ เลือกเฉพาะบรรทัดที่มี 5 ช่อง และขึ้นต้นด้วยเลข
+                    if len(parts) == 5 and parts[0].isdigit():
+                        all_lines.append(line)
 
         if not all_lines:
-            st.error("⚠️ ไม่พบข้อมูลนักเรียนในไฟล์ CSV")
+            st.error("⚠️ ไม่พบข้อมูลนักเรียนที่มีรูปแบบถูกต้อง")
             return pd.DataFrame()
 
-        # รวมเป็น DataFrame เดียว
+        # เตรียม DataFrame
         csv_content = "เลขที่,student_id,prefix,first_name,last_name\n" + "".join(all_lines)
         df = pd.read_csv(StringIO(csv_content), dtype=str)
         df['full_name'] = df['prefix'] + df['first_name'] + ' ' + df['last_name']
 
-        # เชื่อมกับ Google Sheet ถ้ามีข้อมูล
         try:
             worksheet = connect_sheet()
             records = worksheet.get_all_records()
@@ -52,11 +52,12 @@ def load_student_data():
             df['account_name'] = ''
 
         return df
+
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดในการโหลดไฟล์: {e}")
         return pd.DataFrame()
 
-# 💾 บันทึกชื่อแอคเค้านักเรียนลง Google Sheet
+# 💾 บันทึกชื่อแอคเค้านักเรียน
 def save_student_account(student_id, account_name):
     worksheet = connect_sheet()
     records = worksheet.get_all_records()
@@ -70,7 +71,7 @@ def save_student_account(student_id, account_name):
     for row in df.itertuples(index=False):
         worksheet.append_row(list(row))
 
-# 🖼️ ส่วนติดต่อหลัก
+# 🖥️ UI หลัก
 def main():
     st.set_page_config(page_title="ระบบค้นหานักเรียน", page_icon="📘")
     st.title("📘 ระบบค้นหานักเรียน ปี 2568")
