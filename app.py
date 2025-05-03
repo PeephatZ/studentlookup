@@ -220,7 +220,7 @@ def main():
                 if st.button("💾 บันทึก"):
                     save_student_account(student_id, acc_input)
                     st.success("✅ บันทึกเรียบร้อยแล้ว")
-                    st.experimental_rerun()
+                    st.rerun()
         else:
             st.error("❌ ไม่พบรหัสนี้ในระบบ")
 
