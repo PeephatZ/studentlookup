@@ -2,8 +2,6 @@
 service_account.json
 *.json
 
-# Ignore student data
-*.csv
 
 # Python
 __pycache__/
