@@ -15,14 +15,31 @@ def connect_sheet():
     client = gspread.authorize(creds)
     return client.open_by_url(SHEET_URL).sheet1
 
-def extract_classroom_from_lines(lines):
+def extract_blocks_with_classroom(lines):
+    blocks = []
+    current_classroom = "ไม่ระบุ"
+    current_block = []
+
     for line in lines:
-        match = re.search(r"ชั้นมัธยมศึกษาปีที่\s*(\d+)\s*ห้องเรียนที่\s*(\d+)", line)
-        if match:
-            level = match.group(1)
-            room = match.group(2)
-            return f"{level}/{room}"
-    return "ไม่ระบุ"
+        if "ชั้นมัธยมศึกษาปีที่" in line and "ห้องเรียนที่" in line:
+            # ถ้ามี block เก่าเก็บไว้ก่อน
+            if current_block:
+                blocks.append((current_classroom, current_block))
+                current_block = []
+
+            match = re.search(r"ชั้นมัธยมศึกษาปีที่\s*(\d+)\s*ห้องเรียนที่\s*(\d+)", line)
+            if match:
+                level = match.group(1)
+                room = match.group(2)
+                current_classroom = f"{level}/{room}"
+        else:
+            current_block.append(line)
+
+    # เพิ่ม block สุดท้าย
+    if current_block:
+        blocks.append((current_classroom, current_block))
+
+    return blocks
 
 def load_student_data():
     try:
@@ -31,8 +48,11 @@ def load_student_data():
         for file_path in glob.glob("data/*.csv"):
             with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
-                classroom = extract_classroom_from_lines(lines)
-                reader = csv.reader(lines)
+
+            blocks = extract_blocks_with_classroom(lines)
+
+            for classroom, block_lines in blocks:
+                reader = csv.reader(block_lines)
                 for row in reader:
                     if len(row) >= 5 and row[0].strip().isdigit():
                         all_rows.append({
